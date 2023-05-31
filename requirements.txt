@@ -1,0 +1,7 @@
+pyxdg
+coloredlogs
+pandas<=1.5
+openpyxl
+requests
+bibtexparser
+python-docx
