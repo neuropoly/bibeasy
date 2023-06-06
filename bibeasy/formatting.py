@@ -54,9 +54,6 @@ STUDENTS = [
     'Zaimi A',
     ]
 
-TITLE_NAMES = {'article': 'Articles',
-              'combined': 'Combined',
-              'conf-article': 'Conference Articles'}
 
 def check_field_exists(field):
     def inner(func):
