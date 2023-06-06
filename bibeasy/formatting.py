@@ -99,9 +99,8 @@ def csv_to_txt_pubtype(df, pubtype, args):
 
     # For Dokuwiki
     if ext_output == 'md':
-        descriptive_title = '---\ntitle: {0}\n---\n# {0}\n'.format(TITLE_NAMES[pubtype])
         # Generate aggregated list
-        list_output_txt = [descriptive_title]
+        list_output_txt = []
         unique_years = sorted(df['Year'].unique(), reverse=True)
 
         for year in unique_years:
