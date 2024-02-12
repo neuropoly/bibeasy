@@ -1,5 +1,5 @@
 # bibeasy
-Set of tools to manage academic bibliography, convert to [CCV](https://www.ccv-cvc.ca) indexes, and other fun stuff.
+Set of tools to manage academic bibliography, convert to [Canadian CV (CCV)](https://www.ccv-cvc.ca) indexes, and other fun stuff.
 
 ## Getting started
 
