@@ -102,7 +102,7 @@ def csv_to_txt_pubtype(df, pubtype, args):
     file_output, ext_output = args.output.split('.')
     fname_output = '{}-{}.{}'.format(file_output, pubtype, ext_output)
 
-    # For Dokuwiki
+    # For Website (https://neuro.polymtl.ca/publications/journal_articles.html)
     if ext_output == 'md':
         # Generate aggregated list
         list_output_txt = []
