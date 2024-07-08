@@ -115,7 +115,7 @@ bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
     parser.add_argument("-l", "--labels",
                         help="Location of labels_publication.txt",
                         type=str,
-                        required=True)
+                        required=False)
     parser.add_argument("-cl", "--check-labels",
                         help="If a 'Labels' column is present, check if they correspond to labels defined in: "
                              "https://github.com/neuropoly/neuro.polymtl.ca/blob/master/publications/label_definitions.md"
