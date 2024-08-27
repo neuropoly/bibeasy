@@ -21,6 +21,7 @@ STUDENTS = [
     'Boudreau M',
     'Bourget M-H',
     'Bouthillier M',
+    'Dagonneau T',
     'D’Astous A',
     'De Leener B',
     'Dupont S',
