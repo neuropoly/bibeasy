@@ -54,6 +54,7 @@ STUDENTS = [
     'Saliani A',
     'Snoussi H',
     'Topfer R',
+    'Toulouse A',
     'Ullman E',
     'Valošek J',
     'Valosek J',
