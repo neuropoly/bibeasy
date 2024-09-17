@@ -43,6 +43,7 @@ STUDENTS = [
     'Mingasson T',
     'Morozov D',
     'Nami H',
+    'Ost K',
     'Paquin ME',
     'Papp D',
     'Paugam F',
