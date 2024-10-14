@@ -5,10 +5,14 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', '--input_xml', help='Input CCV xml filename', required=True)
 parser.add_argument('-o', '--output_xml', help='Output CCV xml filename (created)', required=True)
+parser.add_argument('-a', '--append', help='Append name to STUDENTS list (for testing)', required=False)
 args = parser.parse_args()
 
 input_name = args.input_xml
 output_name = args.output_xml
+if args.append:
+    STUDENTS.append(args.append)
+    print(STUDENTS)
 
 
 # Load the data into an XML ElementTree
