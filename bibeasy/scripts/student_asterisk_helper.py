@@ -1,8 +1,20 @@
+'''
+USAGE:
+- Export the latest CCV always, keep the old xml around until you confirm the modifications work
+- Run it through the script (bibeasy/scripts/student_asterisk_helper.py -i [ccv.xml] -o [ccv-modified.xml]) under a bibeasy virtualenv
+- Revert the database with the old xml on CCV-CVC.ca if any error occurs (and of course let me know so I can fix it)
+
+TESTING:
+--append can add a single name (ie. Cohen-Adad) for testing with another dataset
+this is useful because we're currently stumped on how to import CCV-98720.xml into another account for testing
+As such, we've been generating a much smaller dataset within a separate account and testing the xml modifications there
+'''
+
 import xml.etree.ElementTree as ET
 from bibeasy.formatting import STUDENTS
 import argparse
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description='Add an asterisk in a CCV xml beside all of Julien\'s students (bibeasy.formatting.STUDENTS)', epilog='see USAGE section in this file for further help')
 parser.add_argument('-i', '--input_xml', help='Input CCV xml filename', required=True)
 parser.add_argument('-o', '--output_xml', help='Output CCV xml filename (created)', required=True)
 parser.add_argument('-a', '--append', help='Append name to STUDENTS list (for testing)', required=False)
