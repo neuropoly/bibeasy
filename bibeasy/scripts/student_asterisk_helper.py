@@ -17,13 +17,13 @@ import argparse
 parser = argparse.ArgumentParser(description='Add an asterisk in a CCV xml beside all of Julien\'s students (bibeasy.formatting.STUDENTS)', epilog='see USAGE section in this file for further help')
 parser.add_argument('-i', '--input_xml', help='Input CCV xml filename', required=True)
 parser.add_argument('-o', '--output_xml', help='Output CCV xml filename (created)', required=True)
-parser.add_argument('-a', '--append', help='Append name to STUDENTS list (for testing)', required=False)
+parser.add_argument('-a', '--append_name', help='Append name to STUDENTS list (for testing)', required=False)
 args = parser.parse_args()
 
 input_name = args.input_xml
 output_name = args.output_xml
-if args.append:
-    STUDENTS.append(args.append)
+if args.append_name:
+    STUDENTS.append(args.append_name)
     print(STUDENTS)
 
 
