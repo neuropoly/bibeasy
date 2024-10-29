@@ -64,10 +64,10 @@ def fetch_gsheet_contents(pubtypes):
                                                                 # and greatly speeds up parsing.
     # union the multiple sheets into a single DataFrame
     pub_lst = []
-    for pubtype, item in publications.items():
-        item['Type'] = pubtype
-        pub_lst.append(item)
-        logging.info(f"  Total '{pubtype}' entries: {len(item)}")
+    for pubtype, df_pubs in publications.items():
+        df_pubs['Type'] = pubtype
+        pub_lst.append(df_pubs)
+        logging.info(f"  Total '{pubtype}' entries: {len(df_pubs)}")
     df_tmp = pandas.concat(pub_lst, ignore_index=True)
     return df_tmp
 
