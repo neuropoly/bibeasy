@@ -1,7 +1,6 @@
-numpy==1.26.0
 pyxdg
 coloredlogs
-pandas<=1.5
+pandas>=2.2.3
 openpyxl
 requests
 bibtexparser

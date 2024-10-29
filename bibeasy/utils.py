@@ -262,8 +262,8 @@ def xml_to_df(fname_xml):
     xml = ET.parse(fname_xml)
     publications = xml.getroot().find("./section[@label='Contributions']/section[@label='Publications']")
 
-    df_xml = pd.DataFrame()
     refcounters = {reftype: 0 for reftype in CCV_REF_TYPE}
+    obj_lst = []
     for p in publications:
         reftype = p.attrib['label']
         if reftype not in CCV_REF_TYPE: continue
@@ -272,14 +272,15 @@ def xml_to_df(fname_xml):
         authors = p.find("./field[@label='Authors']/value").text
         title = p.find(f"./field[@label='{field_title[reftype]}']/value").text
         venue = p.find(f"./field[@label='{field_venue[reftype]}']/value").text
-
-        df_xml = df_xml.append({
+        obj_lst.append({
             'ID': CCVTYPE2PREFIX[reftype] + str(refcounters[reftype]),
             'Type': ccvtype2usertype[reftype],
             'Authors': authors,
             'Title': title,
             'Journal/Conference': venue,
-            }, ignore_index=True)
+            })
+
+    df_xml = pd.DataFrame(obj_lst)
 
     return df_xml
 

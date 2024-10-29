@@ -63,13 +63,13 @@ def fetch_gsheet_contents(pubtypes):
                                                                 # a dict keyed by its contents
                                                                 # and greatly speeds up parsing.
     # union the multiple sheets into a single DataFrame
-    df_csv = pandas.DataFrame()
-    for pubtype, df_tmp in publications.items():
-        df_tmp['Type'] = pubtype
-        df_csv = df_csv.append((df_tmp), sort=False)
-        logging.info(f"  Total '{pubtype}' entries: {len(df_tmp)}")
-
-    return df_csv
+    pub_lst = []
+    for pubtype, df_pubs in publications.items():
+        df_pubs['Type'] = pubtype
+        pub_lst.append(df_pubs)
+        logging.info(f"  Total '{pubtype}' entries: {len(df_pubs)}")
+    df_tmp = pandas.concat(pub_lst, ignore_index=True)
+    return df_tmp
 
 
 def check_labels(df, label_location):
