@@ -83,8 +83,6 @@ bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
     parser.add_argument("-t", "--type",
                         help="Publication type",
                         nargs='+',
-                        choices=PUBTYPES,
-                        default=PUBTYPES,
                         required=False)
     parser.add_argument("-o", "--output",
                         help="Text file to output with converted fields in the following format: [3], [5]. The "

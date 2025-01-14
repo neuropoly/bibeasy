@@ -2,19 +2,21 @@
 #
 # Communication with GoogleSheet API
 
-
-import sys
-import os
-import xdg.BaseDirectory
-import requests
-import pandas
 import logging
+from pathlib import Path
+
 import numpy as np
+import pandas
+import pandas as pd
+import requests
+import xdg.BaseDirectory
 
-import bibeasy
+# URL to the spreadsheet records for neuro.polymtl.ca's publications; this must be Public to be accessed w/ xdg.
+PUBLICATION_URL = "https://docs.google.com/spreadsheets/d/1dEUBYf17hNM22dqV4zx1gsh3Q-d97STnRB4q7p9nQ54"
 
-# this spreadsheet records neuro.polymtl.ca's publications; it must be Public.
-PUBLICATIONS = "https://docs.google.com/spreadsheets/d/1dEUBYf17hNM22dqV4zx1gsh3Q-d97STnRB4q7p9nQ54"
+# The XDG cache path to store everything in
+CACHE_PATH = Path(xdg.BaseDirectory.save_cache_path('bibeasy'))
+DATA_XLSX = CACHE_PATH / "publications.xlsx"
 
 def _dropna_if_field_exists(df, fields):
     """
@@ -33,43 +35,61 @@ def fetch_gsheet_from_the_web():
     """
     Fetch publication records from GoogleSheet API
     """
-
-    logging.info(f"Fetching GoogleSheet '{PUBLICATIONS}'...")
-    gsheet = requests.get(f'{PUBLICATIONS}/export?format=xlsx')
+    # Pull the results from the Google sheet
+    logging.info(f"Fetching GoogleSheet '{PUBLICATION_URL}'...")
+    # Import the data stream in xlsx format; unfortunately we can't use TSV, as this sheet has multiple sub-sheets...
+    gsheet = requests.get(f'{PUBLICATION_URL}/export?format=xlsx')
     gsheet.raise_for_status()
 
-    # cache result
-    cache = xdg.BaseDirectory.save_cache_path('bibeasy')
-    publications = os.path.join(cache, "publications.xlsx")
-    with open(publications, "wb") as fd:
+    # Save the contents of the Google sheet to a cached file
+    with open(DATA_XLSX, "wb") as fd:
         fd.write(gsheet.content)
 
 
-def fetch_gsheet_contents(pubtypes):
+def load_gsheet_contents(pub_types):
     """
     Fetch publication records from GoogleSheet API
-    :param pubtypes: list: Can contain the following items: {'article', 'proceedings'}.
+    :param pub_types: The subset of publication types (sub-sheets) you want to grab from the Google Sheet cache
     :return: Pandas dataframe
     """
-
-    cache = xdg.BaseDirectory.save_cache_path('bibeasy')
-    publications = os.path.join(cache, "publications.xlsx")
-    if not os.path.exists(publications):
+    if not DATA_XLSX.exists():
         fetch_gsheet_from_the_web()
 
-    publications = pandas.read_excel(publications,
-                                     engine='openpyxl',
-                                     sheet_name=list(pubtypes)) # when sheet_name is a list, gives
-                                                                # a dict keyed by its contents
-                                                                # and greatly speeds up parsing.
-    # union the multiple sheets into a single DataFrame
-    pub_lst = []
-    for pubtype, df_pubs in publications.items():
-        df_pubs['Type'] = pubtype
-        pub_lst.append(df_pubs)
-        logging.info(f"  Total '{pubtype}' entries: {len(df_pubs)}")
-    df_tmp = pandas.concat(pub_lst, ignore_index=True)
-    return df_tmp
+    # The ExcelFile interface keeps the sub-sheets bundled nicely for us, without needing to explicitly define
+    #  the sub-sheet labels.
+    xlsx_file = pandas.ExcelFile(DATA_XLSX)
+
+    # If the user didn't explicitly request a subset of publication types, use all of them
+    if len(pub_types) < 1:
+        pub_types = xlsx_file.sheet_names
+    # Otherwise, check if any sheets requested by the user are not present, and raise an error if any are found
+    else:
+        invalid_types = set(pub_types) - set(xlsx_file.sheet_names)
+        if len(invalid_types) > 0:
+            raise ValueError(
+                f"Requested publication types '{invalid_types}' which do not exist in the cache. "
+                f"Valid publication types are '{set(xlsx_file.sheet_names)}'. "
+                f"Check for typos, and confirm that the cache is up-to-date!"
+            )
+
+    # Iterate through the requested sheets, preparing them to be concatenated
+    sub_dfs = []
+    for sub_sheet_id in pub_types:
+        # Read the sub-sheet DataFrame
+        sub_df = pd.read_excel(xlsx_file, sub_sheet_id)
+
+        # Set the 'type' of the sub_df to the sheet's name
+        sub_df['Type'] = sub_sheet_id
+
+        # Store the result in a list to be stacked later
+        sub_dfs.append(sub_df)
+
+        # Log the size of the result for the user
+        logging.info(f"\tTotal '{sub_sheet_id}' entries: {sub_df.shape[0]}")
+
+    # Concatenate them all together into one full dataframe
+    return_df = pandas.concat(sub_dfs, ignore_index=True)
+    return return_df
 
 
 def check_labels(df, label_location):
@@ -113,7 +133,7 @@ def gsheet_to_df(args):
     if args.freshen_cache:
         fetch_gsheet_from_the_web()
 
-    df_csv = fetch_gsheet_contents(args.type)
+    df_csv = load_gsheet_contents(args.type)
 
     # Remove rows with empty fields (those that contain NaN)
     df_csv = df_csv.replace('', np.nan, regex=True)
