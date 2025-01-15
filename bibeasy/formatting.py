@@ -143,8 +143,7 @@ def csv_to_txt_pubtype(df, pubtype, args):
         txtFile.close()
 
         # Create authorized labels file
-        convert_labels_file(args.labels,
-                            "labels_publication.html")
+        convert_labels_file(args.labels, output_parent/"labels_publication.html")
 
     # For Word/GoogleDoc
     elif output_ext == '.docx':
