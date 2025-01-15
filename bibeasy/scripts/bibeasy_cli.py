@@ -9,15 +9,19 @@
 # TODO: add feature to separate conference papers
 # TODO: Add * for supervised students
 
+import fileinput
+from argparse import ArgumentError, ArgumentParser
+from pathlib import Path
+
 import coloredlogs
 
-from bibeasy.utils import *
-from bibeasy.gsheet import *
+import bibeasy.gsheet as bibsheet
+import bibeasy.utils as bibutils
 
 PUBTYPES = ['article', 'nonreferred', 'conf-article', 'conf-proc', 'talk', 'bookchapter', 'patent', 'media', 'nikola']
 
 def get_parameters():
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description="This script is used to format publications from GoogleSheet, and for doing cross-referencing "
                     "publication index between GoogleSheet and the XML-generated Canadian Common CV (CCV).",
         epilog="""\
@@ -58,7 +62,7 @@ bibeasy -x REF-CCV.xml -f FILTER
 Convert reference ID from one CCV version to another CCV version.
 bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
 """,
-        formatter_class=SmartFormatter)
+        formatter_class=bibutils.SmartFormatter)
     parser.add_argument("-S", "--sync",
                         help="Copy contents of GoogleSheet into CCV XML file.",
                         action='store_true')
@@ -136,47 +140,47 @@ def main():
         coloredlogs.install(fmt='%(message)s', level='INFO')
 
     if args.input:
-        inputref = fix_input_ref(args.input)
+        inputref = bibutils.fix_input_ref(args.input)
 
     # Read XML file (CCV references)
     if args.xml:
-        df_ccv = xml_to_df(args.xml)
+        df_ccv = bibutils.xml_to_df(args.xml)
 
     # If second XML is provided, compare two versions
     if args.xml_dest:
-        df_dest = xml_to_df(args.xml_dest)
-        replace_ref_in_text(df_ccv, df_dest, inputref, args.sort_refs)
+        df_dest = bibutils.xml_to_df(args.xml_dest)
+        bibutils.replace_ref_in_text(df_ccv, df_dest, inputref, args.sort_refs)
 
     # Otherwise, do something else
     else:
         # Fetch GoogleSheet publication records
-        df_csv = gsheet_to_df(args)
+        df_csv = bibsheet.gsheet_to_df(args)
 
         if args.sync:
             if not args.xml:
                 raise ArgumentError("--sync needs to be used with -x")
 
-            sync(df_csv, args.xml)
+            bibutils.sync(df_csv, args.xml)
             return
 
         # Find matching refs between GoogleSheet and CCV publications
         if args.xml:
-            find_matching_ref(df_csv, df_ccv, args.type)
+            bibutils.find_matching_ref(df_csv, df_ccv, args.type)
 
             # Replace references between GoogleSheet and CCV
             if args.input:
                 if args.to_gsheet:
-                    replace_ref_in_text(df_ccv, df_csv, inputref, args.sort_refs)
+                    bibutils.replace_ref_in_text(df_ccv, df_csv, inputref, args.sort_refs)
                 else:
-                    replace_ref_in_text(df_csv, df_ccv, inputref, args.sort_refs)
+                    bibutils.replace_ref_in_text(df_csv, df_ccv, inputref, args.sort_refs)
 
         else:
             if args.input:
-                display_ref(df_csv, inputref)
+                bibutils.display_ref(df_csv, inputref)
 
         # Write GoogleSheet into formatted text
         if args.output:
-            csv_to_txt(df_csv, args)
+            bibutils.csv_to_txt(df_csv, args)
 
 
 if __name__ == '__main__':
