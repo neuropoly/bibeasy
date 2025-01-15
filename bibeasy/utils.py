@@ -121,10 +121,13 @@ def display_ref(df, input_refs):
         if list_ref_id:
             for ref_id in list_ref_id:
                 ref = df[df['ID'] == ref_id]
-                print("{:<5s}{}..., {}".format(
-                    ref_id,
-                    ref['Authors'].to_numpy()[0].split(',')[0],
-                    ref['Title'].to_numpy()[0]))
+                if ref.shape[0] < 1:
+                    logging.warning(f"No entries in GSheet Cache matched reference ID '{ref_id}'; skipping!")
+                else:
+                    print("{:<5s}{}..., {}".format(
+                        ref_id,
+                        ref['Authors'].to_numpy()[0].split(',')[0],
+                        ref['Title'].to_numpy()[0]))
 
 
 def display_replacement(df_old, id_old, id_new):
@@ -158,10 +161,15 @@ def find_matching_ref(df_csv, df_ccv, pubtypes):
     :return: dict: ID conversion from CSV to CCV
     """
     # df_ccv[(df_ccv['Title'] == row['Title']) & (df_ccv['Journal' == row['Journal']])]
-    check_mismatched_fields = ['Authors',
-                               'Journal/Conference']
+    check_mismatched_fields = ['Authors', 'Journal/Conference']
+
+    # If no pubtype was specified, check only articles and proceedings
+    # TODO Move this (and several other identical checks) elsewhere to reduce redundancy
+    if pubtypes is None or len(pubtypes) < 1:
+        pubtypes = ['article', 'proceedings']
+
     for pubtype in pubtypes:
-        medium_type = {'article': 'Journal', 'proceedings': 'Conference'}
+        # medium_type = {'article': 'Journal', 'proceedings': 'Conference'}
         logging.info("\nPublication type: '{}'\n".format(pubtype))
         # First, loop across CSV refs
         csv2ccv = {}
