@@ -3,12 +3,12 @@
 # Deals with output formatting
 
 import logging
-import os
-import docx
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-import pandas as pd
+from pathlib import Path
 
+import docx
+import pandas as pd
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches, Pt, RGBColor
 
 # TODO: fetch students from google sheet
 STUDENTS = [
@@ -104,11 +104,18 @@ def csv_to_txt_pubtype(df, pubtype, args):
     :param args:
     :return:
     """
-    file_output, ext_output = args.output.split('.')
-    fname_output = '{}-{}.{}'.format(file_output, pubtype, ext_output)
+    # Parse the output using PathLib to determine the relevant components
+    output_path = Path(args.output)
+    output_parent = output_path.parent
+    output_name = output_path.stem
+    output_ext = output_path.suffix
+
+    # Determine the file's destination, creating the output directory if its needed
+    dest_name = f"{output_name}-{pubtype}{output_ext}"
+    dest_file = output_parent / dest_name
 
     # For Website (https://neuro.polymtl.ca/publications/journal_articles.html)
-    if ext_output == 'md':
+    if output_ext == '.md':
         # Generate aggregated list
         list_output_txt = []
         unique_years = sorted(df['Year'].unique(), reverse=True)
@@ -125,8 +132,12 @@ def csv_to_txt_pubtype(df, pubtype, args):
 
         list_output_txt.append(f"</div>")
 
+        # Generate the output directory if it doesn't exist
+        if not output_parent.exists():
+            output_parent.mkdir(parents=True)
+
         # Save to file
-        with open(fname_output, 'w') as txtFile:
+        with open(dest_file, 'w') as txtFile:
             for item in list_output_txt:
                 txtFile.write("%s\n" % item)
         txtFile.close()
@@ -136,16 +147,22 @@ def csv_to_txt_pubtype(df, pubtype, args):
                             "labels_publication.html")
 
     # For Word/GoogleDoc
-    elif ext_output == 'docx':
+    elif output_ext == '.docx':
+        # Initialize the document and fill it with our entries
         mydoc = docx.Document()
         for index, row in df.iterrows():
             logging.debug(row)
             _format_docx(mydoc, row, args.style)
-        mydoc.save(fname_output)
+
+        # Generate the output directory if it doesn't exist
+        if not output_parent.exists():
+            output_parent.mkdir(parents=True)
+
+        mydoc.save(str(dest_file))
 
     logging.info("\nFormatting type: '{}'".format(pubtype))
     logging.info("  Selected entries: {}".format(len(df)))
-    logging.info('  File written: {}'.format(fname_output))
+    logging.info('  File written: {}'.format(dest_file.resolve()))
 
 
 def _format_docx(mydoc, row, style):
