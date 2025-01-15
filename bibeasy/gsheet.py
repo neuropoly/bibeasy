@@ -60,7 +60,7 @@ def load_gsheet_contents(pub_types):
     xlsx_file = pandas.ExcelFile(DATA_XLSX)
 
     # If the user didn't explicitly request a subset of publication types, use all of them
-    if len(pub_types) < 1:
+    if pub_types is None or len(pub_types) < 1:
         pub_types = xlsx_file.sheet_names
     # Otherwise, check if any sheets requested by the user are not present, and raise an error if any are found
     else:

@@ -83,8 +83,13 @@ def csv_to_txt(df_csv, args):
     :param args:
     :return:
     """
+    # If no subtypes were defined, use all available
+    pubtypes = args.type
+    if pubtypes is None or len(pubtypes) < 1:
+        pubtypes = set(df_csv['Type'])
+
     # Iterate across pubtypes and write output file
-    for pubtype in args.type:
+    for pubtype in pubtypes:
         csv_to_txt_pubtype(df_csv[df_csv['Type'] == pubtype], pubtype, args)
     #Sort df descending for wiki output
     if args.combine:
