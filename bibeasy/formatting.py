@@ -3,7 +3,6 @@
 # Deals with output formatting
 
 import logging
-from pathlib import Path
 
 import docx
 import pandas as pd
@@ -105,7 +104,7 @@ def csv_to_txt_pubtype(df, pubtype, args):
     :return:
     """
     # Parse the output using PathLib to determine the relevant components
-    output_path = Path(args.output)
+    output_path = args.output
     output_parent = output_path.parent
     output_name = output_path.stem
     output_ext = output_path.suffix

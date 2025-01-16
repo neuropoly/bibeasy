@@ -2,21 +2,18 @@
 #
 # List of utilities useful for this package
 
-import os
 import argparse
-import fileinput
 import logging
-from typing import List
-
-import numpy as np
 import re
 import shutil
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import List
 
+import numpy as np
 import pandas as pd
 
 from bibeasy.formatting import csv_to_txt_pubtype
-
 
 ET.register_namespace("generic-cv", "http://www.cihr-irsc.gc.ca/generic-cv/1.0.0") # this helps the CCV XML write() right
 
@@ -254,12 +251,16 @@ def fix_input_ref(inputref_arg):
     return inputref_arg[0]
 
 
-def xml_to_df(fname_xml):
+def xml_to_df(xml_path: Path):
     """
     Import XML CCV structure into custom DataFrame
-    :param fname_xml:
+    :param xml_path: Path to the XML file to parse
     :return:
     """
+    # Check to make sure the file actually exists, and raise an error if its doesn't
+    if not xml_path.exists():
+        raise ValueError("Path provided for the CCV XML does not exist, and could not be read!")
+
     # the title is found either in the 'Journal' or 'Conference Name' <field>,
     # depending on what kind of publication it was, hence field_journalconf.
     field_title = {'Journal Articles': 'Article Title',
@@ -269,7 +270,7 @@ def xml_to_df(fname_xml):
                    'Conference Publications': 'Conference Name'}
 
     # Read XML file (CCV references)
-    xml = ET.parse(fname_xml)
+    xml = ET.parse(xml_path)
     publications = xml.getroot().find("./section[@label='Contributions']/section[@label='Publications']")
 
     refcounters = {reftype: 0 for reftype in CCV_REF_TYPE}
