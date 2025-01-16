@@ -94,9 +94,9 @@ bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
     parser.add_argument("-xd", "--xml-dest",
                         help="XML destination file that will be used to match the other XML (specified by -x).",
                         required=False)
-    parser.add_argument("-i", "--input_refs",
-                        help="Text file which contains references, listed as: '[J12, J13, C8], [J74]', where 'J' "
-                             "corresponds to journal publications and 'C' corresponds to conference proceedings.",
+    parser.add_argument("-i", "--input", dest='input_refs',
+                        help="A list of reference IDs and/or files containing reference IDs (one per line) to be used "
+                             "or filtered.",
                         nargs='+',
                         type=parse_input_refs,
                         required=False)
