@@ -161,10 +161,10 @@ def main():
 
     # If a set of input references was provided, make sure that it is 1D (as files can make it a list of lists)
     if args.input_refs:
-        inputrefs = flatten_input_refs(args.input_refs)
+        input_refs = flatten_input_refs(args.input_refs)
     # Otherwise, set input-refs to None so later code can recognize that it should not be considered
     else:
-        inputrefs = None
+        input_refs = None
 
     # Read XML file (CCV references)
     if args.xml:
@@ -173,7 +173,7 @@ def main():
     # If second XML is provided, compare two versions
     if args.xml_dest:
         df_dest = bibutils.xml_to_df(args.xml_dest)
-        bibutils.replace_ref_in_text(df_ccv, df_dest, inputref, args.sort_refs)
+        bibutils.replace_ref_in_text(df_ccv, df_dest, input_refs, args.sort_refs)
 
     # Otherwise, do something else
     else:
@@ -192,15 +192,15 @@ def main():
             bibutils.find_matching_ref(df_csv, df_ccv, args.type)
 
             # Replace references between GoogleSheet and CCV
-            if inputrefs:
+            if input_refs:
                 if args.to_gsheet:
-                    bibutils.replace_ref_in_text(df_ccv, df_csv, inputrefs, args.sort_refs)
+                    bibutils.replace_ref_in_text(df_ccv, df_csv, input_refs, args.sort_refs)
                 else:
-                    bibutils.replace_ref_in_text(df_csv, df_ccv, inputrefs, args.sort_refs)
+                    bibutils.replace_ref_in_text(df_csv, df_ccv, input_refs, args.sort_refs)
 
         else:
-            if inputrefs:
-                bibutils.display_ref(df_csv, inputrefs)
+            if input_refs:
+                bibutils.display_ref(df_csv, input_refs)
 
         # Write GoogleSheet into formatted text
         if args.output:
