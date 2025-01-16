@@ -6,6 +6,8 @@ import os
 import argparse
 import fileinput
 import logging
+from typing import List
+
 import numpy as np
 import re
 import shutil
@@ -96,20 +98,15 @@ def csv_to_txt(df_csv, args):
         df_csv = df_csv.sort_values(['Year'], ascending=False)
         csv_to_txt_pubtype(df_csv, 'combined', args)
 
-def display_ref(df, input_refs):
+def display_ref(df, input_refs: List[str]):
     """
     Display reference.
     :param df:
     :param input_refs: String or file name containing a list of references.
     :return:
     """
-    # If input_refs is a file, find references using regex
-    if os.path.isfile(input_refs):
-        lineiter = fileinput.input(input_refs)
-    else:
-        lineiter = [input_refs]
     # Read input text file
-    for line in lineiter:
+    for line in input_refs:
         # Find all refs that have J or C as prefix, followed by an integer
         list_ref_id = []
         for prefixtype in list(usertype2prefix.values()):
@@ -358,12 +355,8 @@ def replace_ref_in_text(df_old, df_new, input_refs, sort_ref=False):
     :return:
     """
     # If input_refs is a file, find references using regex
-    if os.path.isfile(input_refs):
-        lineiter = fileinput.input(input_refs)
-    else:
-        lineiter = [input_refs]
     # Read input text file
-    for line in lineiter:
+    for line in input_refs:
         # Find blocks of refs
         ref_blocks = find_ref_blocks(line)
         # Loop across blocks and replace refs

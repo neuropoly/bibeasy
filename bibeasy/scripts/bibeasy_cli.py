@@ -20,6 +20,25 @@ import bibeasy.utils as bibutils
 
 PUBTYPES = ['article', 'nonreferred', 'conf-article', 'conf-proc', 'talk', 'bookchapter', 'patent', 'media', 'nikola']
 
+def parse_input_refs(val: str):
+    # If this command is a valid file, treat each line in the file as a new entry
+    if Path(val).exists():
+        val = fileinput.input(val)
+    # Return the result
+    return val
+
+def flatten_input_refs(init_vals: list):
+    new_vals = []
+    for v in init_vals:
+        # If it's a string, it's a raw ID and should just be appended to the list
+        if isinstance(v, str):
+            new_vals.append(v)
+        # Otherwise, its data pulled from a file, and we should extend the list with its contents
+        else:
+            new_vals.extend([x.replace('\n', '') for x in v])
+    return new_vals
+
+
 def get_parameters():
     parser = ArgumentParser(
         description="This script is used to format publications from GoogleSheet, and for doing cross-referencing "
@@ -75,10 +94,11 @@ bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
     parser.add_argument("-xd", "--xml-dest",
                         help="XML destination file that will be used to match the other XML (specified by -x).",
                         required=False)
-    parser.add_argument("-i", "--input",
+    parser.add_argument("-i", "--input_refs",
                         help="Text file which contains references, listed as: '[J12, J13, C8], [J74]', where 'J' "
                              "corresponds to journal publications and 'C' corresponds to conference proceedings.",
                         nargs='+',
+                        type=parse_input_refs,
                         required=False)
     parser.add_argument("-g", "--to-gsheet",
                         help="Convert reference index from CCV to GoogleSheet (instead of the default behaviour: "
@@ -139,8 +159,12 @@ def main():
     else:
         coloredlogs.install(fmt='%(message)s', level='INFO')
 
-    if args.input:
-        inputref = bibutils.fix_input_ref(args.input)
+    # If a set of input references was provided, make sure that it is 1D (as files can make it a list of lists)
+    if args.input_refs:
+        inputrefs = flatten_input_refs(args.input_refs)
+    # Otherwise, set input-refs to None so later code can recognize that it should not be considered
+    else:
+        inputrefs = None
 
     # Read XML file (CCV references)
     if args.xml:
@@ -168,15 +192,15 @@ def main():
             bibutils.find_matching_ref(df_csv, df_ccv, args.type)
 
             # Replace references between GoogleSheet and CCV
-            if args.input:
+            if inputrefs:
                 if args.to_gsheet:
-                    bibutils.replace_ref_in_text(df_ccv, df_csv, inputref, args.sort_refs)
+                    bibutils.replace_ref_in_text(df_ccv, df_csv, inputrefs, args.sort_refs)
                 else:
-                    bibutils.replace_ref_in_text(df_csv, df_ccv, inputref, args.sort_refs)
+                    bibutils.replace_ref_in_text(df_csv, df_ccv, inputrefs, args.sort_refs)
 
         else:
-            if args.input:
-                bibutils.display_ref(df_csv, inputref)
+            if inputrefs:
+                bibutils.display_ref(df_csv, inputrefs)
 
         # Write GoogleSheet into formatted text
         if args.output:
