@@ -31,6 +31,7 @@ def file_which_exists(arg_val: str):
         raise ValueError(f"Path '{arg_val}' does not exist!")
     if not ret_val.is_file():
         raise ValueError(f"Path '{arg_val}' is not a valid file or link to a valid file!")
+    return ret_val
 
 def parse_input_refs(val: str):
     """
