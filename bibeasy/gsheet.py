@@ -4,6 +4,7 @@
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import pandas
@@ -124,16 +125,18 @@ def check_labels(df, label_location):
         df["Authorized"] = False
 
 
-def gsheet_to_df(args):
+def gsheet_to_df(
+        type: Optional[list], labels: Optional[list[str]], filter: Optional[list[str]],
+        min_year: int, freshen_cache: bool, should_check_labels: bool, reverse: bool
+):
     """
     Fetch GoogleSheet list of publications, convert to Pandas DF and filter based on user arguments.
-    :param args:
     :return:
     """
-    if args.freshen_cache:
+    if freshen_cache:
         fetch_gsheet_from_the_web()
 
-    df_csv = load_gsheet_contents(args.type)
+    df_csv = load_gsheet_contents(type)
 
     # Remove rows with empty fields (those that contain NaN)
     df_csv = df_csv.replace('', np.nan, regex=True)
@@ -143,22 +146,22 @@ def gsheet_to_df(args):
     df_csv = df_csv.replace(np.nan, '', regex=True)
 
     # Check if labels are correct
-    if args.check_labels:
-        check_labels(df_csv, args.labels)
+    if should_check_labels:
+        check_labels(df_csv, labels)
 
     # Fix data types
     df_csv.Year = df_csv.Year.astype(int)
 
     # Filter by tag
-    if args.filter:
-        df_csv = df_csv[df_csv[args.filter] == 'x']
+    if filter:
+        df_csv = df_csv[df_csv[filter] == 'x']
 
     # Filter by minimum year
-    if args.min_year:
-        df_csv = df_csv[df_csv['Year'].astype(int) >= args.min_year]
+    if min_year:
+        df_csv = df_csv[df_csv['Year'].astype(int) >= min_year]
 
     # Reverse sorting
-    if args.reverse:
+    if reverse:
         df_csv = df_csv.iloc[::-1]
 
     return df_csv

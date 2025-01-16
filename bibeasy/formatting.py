@@ -3,6 +3,8 @@
 # Deals with output formatting
 
 import logging
+from pathlib import Path
+from typing import Optional
 
 import docx
 import pandas as pd
@@ -95,16 +97,14 @@ def convert_labels_file(labels_file, output_file):
         f.write(html_code)
 
 
-def csv_to_txt_pubtype(df, pubtype, args):
+def csv_to_txt_pubtype(
+        df, pubtype: str, output: Path, labels: Optional[list[str]], style: str
+):
     """
     Write formatted output file with list of publication for a specific pubtype.
-    :param df: DF of a single pubtype
-    :param pubtype: str: Publication type
-    :param args:
-    :return:
     """
     # Parse the output using PathLib to determine the relevant components
-    output_path = args.output
+    output_path = output
     output_parent = output_path.parent
     output_name = output_path.stem
     output_ext = output_path.suffix
@@ -142,7 +142,7 @@ def csv_to_txt_pubtype(df, pubtype, args):
         txtFile.close()
 
         # Create authorized labels file
-        convert_labels_file(args.labels, output_parent/"labels_publication.html")
+        convert_labels_file(labels, output_parent/"labels_publication.html")
 
     # For Word/GoogleDoc
     elif output_ext == '.docx':
@@ -150,7 +150,7 @@ def csv_to_txt_pubtype(df, pubtype, args):
         mydoc = docx.Document()
         for index, row in df.iterrows():
             logging.debug(row)
-            _format_docx(mydoc, row, args.style)
+            _format_docx(mydoc, row, style)
 
         # Generate the output directory if it doesn't exist
         if not output_parent.exists():

@@ -12,6 +12,7 @@
 import fileinput
 from argparse import ArgumentError, ArgumentParser
 from pathlib import Path
+from typing import Optional
 
 import coloredlogs
 
@@ -60,7 +61,7 @@ def flatten_input_refs(init_vals: list):
 
 
 # == CLI Argument Parsing == #
-def get_parameters():
+def parse_cli_parameters():
     parser = ArgumentParser(
         description="This script is used to format publications from GoogleSheet, and for doing cross-referencing "
                     "publication index between GoogleSheet and the XML-generated Canadian Common CV (CCV).",
@@ -163,7 +164,7 @@ bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
                         help="Location of labels_publication.txt",
                         type=str,
                         required=False)
-    parser.add_argument("-cl", "--check-labels",
+    parser.add_argument("-cl", "--check-labels", dest='should_check_labels',
                         help="If a 'Labels' column is present, check if they correspond to labels defined in: "
                              "https://github.com/neuropoly/neuro.polymtl.ca/blob/master/publications/label_definitions.md"
                              "Note that his only concerns the formatting for NeuroPoly's website.",
@@ -174,63 +175,75 @@ bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
     return parser.parse_args()
 
 
-def main():
-    args = get_parameters()
-
+def main(
+        # Sources for files to parse/output
+        xml: Optional[Path], xml_dest: Optional[Path], output: Optional[Path],
+        # Various filters the user can specify
+        input_refs: Optional[list], type: Optional[list], labels: Optional[list[str]], filter: Optional[list[str]],
+        min_year: int,
+        # Formatting
+        style: str, should_check_labels: bool, reverse: bool, sort_refs: bool, to_gsheet: bool, combine: bool,
+        # Misc. other stuff
+        verbose: bool, sync: bool, freshen_cache: bool,
+        **kwargs
+):
     # Initialize colored logging
     # Note: coloredlogs.install() replaces logging.BasicConfig()
-    if args.verbose:
+    if verbose:
         coloredlogs.install(fmt='%(message)s', level='DEBUG')
     else:
         coloredlogs.install(fmt='%(message)s', level='INFO')
 
     # If a set of input references was provided, make sure that it is 1D (as files can make it a list of lists)
-    if args.input_refs:
-        input_refs = flatten_input_refs(args.input_refs)
-    # Otherwise, set input-refs to None so later code can recognize that it should not be considered
-    else:
-        input_refs = None
+    if input_refs:
+        input_refs = flatten_input_refs(input_refs)
 
     # Read XML file (CCV references)
-    if args.xml:
-        df_ccv = bibutils.xml_to_df(args.xml)
+    if xml:
+        df_ccv = bibutils.xml_to_df(xml)
 
-    # If second XML is provided, compare two versions
-    if args.xml_dest:
-        df_dest = bibutils.xml_to_df(args.xml_dest)
-        bibutils.replace_ref_in_text(df_ccv, df_dest, input_refs, args.sort_refs)
+        # If second XML is provided, compare two versions
+        if xml_dest:
+            df_dest = bibutils.xml_to_df(xml_dest)
+            bibutils.replace_ref_in_text(df_ccv, df_dest, input_refs, sort_refs)
 
-    # Otherwise, do something else
-    else:
-        # Fetch GoogleSheet publication records
-        df_csv = bibsheet.gsheet_to_df(args)
-
-        if args.sync:
-            if not args.xml:
-                raise ArgumentError("--sync needs to be used with -x")
-
-            bibutils.sync(df_csv, args.xml)
-            return
-
-        # Find matching refs between GoogleSheet and CCV publications
-        if args.xml:
-            bibutils.find_matching_ref(df_csv, df_ccv, args.type)
+        # Otherwise, find matching references between the GoogleSheet cache and the provided CCV
+        else:
+            df_csv = bibsheet.gsheet_to_df(
+                type, labels, filter, min_year, freshen_cache, should_check_labels, reverse
+            )
+            bibutils.find_matching_ref(df_csv, df_ccv, type)
 
             # Replace references between GoogleSheet and CCV
             if input_refs:
-                if args.to_gsheet:
-                    bibutils.replace_ref_in_text(df_ccv, df_csv, input_refs, args.sort_refs)
+                if to_gsheet:
+                    bibutils.replace_ref_in_text(df_ccv, df_csv, input_refs, sort_refs)
                 else:
-                    bibutils.replace_ref_in_text(df_csv, df_ccv, input_refs, args.sort_refs)
+                    bibutils.replace_ref_in_text(df_csv, df_ccv, input_refs, sort_refs)
 
-        else:
-            if input_refs:
-                bibutils.display_ref(df_csv, input_refs)
+            # Synchronize the results if the user requested it
+            if sync:
+                bibutils.sync(df_csv, xml)
 
-        # Write GoogleSheet into formatted text
-        if args.output:
-            bibutils.csv_to_txt(df_csv, args)
+
+    # If no XML was provided,
+    else:
+        # Fetch GoogleSheet publication records
+        df_csv = bibsheet.gsheet_to_df(
+            type, labels, filter, min_year, freshen_cache, should_check_labels, reverse
+        )
+
+        # If the user requested a subset of references to be displayed, do so
+        if input_refs:
+            bibutils.display_ref(df_csv, input_refs)
+
+        # Output the result to the destination if the user requested it
+        if output:
+            bibutils.csv_to_txt(
+                df_csv, type, combine, output, labels, style
+            )
 
 
 if __name__ == '__main__':
-    main()
+    kwargs = parse_cli_parameters().__dict__
+    main(**kwargs)

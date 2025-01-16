@@ -8,7 +8,7 @@ import re
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -75,25 +75,25 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def csv_to_txt(df_csv, args):
+def csv_to_txt(
+        df_csv, pubtypes: Optional[list[str]], combine: bool,
+        output: Path, labels: Optional[list[str]], style: str
+):
     """
     Write formatted output file with list of publication.
-    :param df_csv:
-    :param args:
-    :return:
     """
     # If no subtypes were defined, use all available
-    pubtypes = args.type
     if pubtypes is None or len(pubtypes) < 1:
         pubtypes = set(df_csv['Type'])
 
     # Iterate across pubtypes and write output file
     for pubtype in pubtypes:
-        csv_to_txt_pubtype(df_csv[df_csv['Type'] == pubtype], pubtype, args)
+        sub_db = df_csv[df_csv['Type'] == pubtype]
+        csv_to_txt_pubtype(sub_db, pubtype, output, labels, style)
     #Sort df descending for wiki output
-    if args.combine:
+    if combine:
         df_csv = df_csv.sort_values(['Year'], ascending=False)
-        csv_to_txt_pubtype(df_csv, 'combined', args)
+        csv_to_txt_pubtype(df_csv, 'combined', output, labels, style)
 
 def display_ref(df, input_refs: List[str]):
     """
