@@ -10,7 +10,7 @@
 # TODO: Add * for supervised students
 
 import fileinput
-from argparse import ArgumentError, ArgumentParser
+from argparse import ArgumentParser
 from pathlib import Path
 from typing import Optional
 
@@ -18,8 +18,6 @@ import coloredlogs
 
 import bibeasy.gsheet as bibsheet
 import bibeasy.utils as bibutils
-
-PUBTYPES = ['article', 'nonreferred', 'conf-article', 'conf-proc', 'talk', 'bookchapter', 'patent', 'media', 'nikola']
 
 # == ArgParse Helpers == #
 def file_which_exists(arg_val: str):
