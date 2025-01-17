@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-import pandas
 import pandas as pd
 import requests
 import xdg.BaseDirectory
@@ -17,7 +16,7 @@ PUBLICATION_URL = "https://docs.google.com/spreadsheets/d/1dEUBYf17hNM22dqV4zx1g
 
 # The XDG cache path to store everything in
 CACHE_PATH = Path(xdg.BaseDirectory.save_cache_path('bibeasy'))
-DATA_XLSX = CACHE_PATH / "publications.xlsx"
+CACHED_GSHEET = CACHE_PATH / "gsheet.xlsx"
 
 def _dropna_if_field_exists(df, fields):
     """
@@ -43,7 +42,7 @@ def fetch_gsheet_from_the_web():
     gsheet.raise_for_status()
 
     # Save the contents of the Google sheet to a cached file
-    with open(DATA_XLSX, "wb") as fd:
+    with open(CACHED_GSHEET, "wb") as fd:
         fd.write(gsheet.content)
 
 
@@ -53,12 +52,12 @@ def load_gsheet_contents(pub_types):
     :param pub_types: The subset of publication types (sub-sheets) you want to grab from the Google Sheet cache
     :return: Pandas dataframe
     """
-    if not DATA_XLSX.exists():
+    if not CACHED_GSHEET.exists():
         fetch_gsheet_from_the_web()
 
     # The ExcelFile interface keeps the sub-sheets bundled nicely for us, without needing to explicitly define
     #  the sub-sheet labels.
-    xlsx_file = pandas.ExcelFile(DATA_XLSX)
+    xlsx_file = pd.ExcelFile(CACHED_GSHEET)
 
     # If the user didn't explicitly request a subset of publication types, use all of them
     if pub_types is None or len(pub_types) < 1:
@@ -89,19 +88,20 @@ def load_gsheet_contents(pub_types):
         logging.info(f"\tTotal '{sub_sheet_id}' entries: {sub_df.shape[0]}")
 
     # Concatenate them all together into one full dataframe
-    return_df = pandas.concat(sub_dfs, ignore_index=True)
+    return_df = pd.concat(sub_dfs, ignore_index=True)
     return return_df
 
 
-def check_labels(df, label_location):
+def check_labels(df: pd.DataFrame, label_path: Path):
     """
     Check if labels are correct.
-    :param df:
+    :param df: The CCV dataframe to parse
+    :param label_path: Path to file containing the labels we want to check
     :return:
     """
     logging.info("Checking labels...")
     # Fetch authorized label values
-    with open(label_location, "r") as f:
+    with open(label_path, "r") as f:
         authorized_labels = [line.strip() for line in f]
 
     # Define a function to check if a label is authorized
@@ -126,7 +126,7 @@ def check_labels(df, label_location):
 
 
 def gsheet_to_df(
-        type: Optional[list], labels: Optional[list[str]], filter: Optional[list[str]],
+        type: Optional[list], labels: Optional[Path], filter: Optional[list[str]],
         min_year: int, freshen_cache: bool, should_check_labels: bool, reverse: bool
 ):
     """

@@ -159,8 +159,8 @@ bibeasy -x REF-CCV-SRC.XML --xml-dest REF-CCV-DEST.XML
                         help="Sort references after replacement.",
                         action='store_true')
     parser.add_argument("-l", "--labels",
-                        help="Location of labels_publication.txt",
-                        type=str,
+                        help="Location of file containing a set of labels which should be checked against",
+                        type=file_which_exists,
                         required=False)
     parser.add_argument("-cl", "--check-labels", dest='should_check_labels',
                         help="If a 'Labels' column is present, check if they correspond to labels defined in: "
@@ -177,13 +177,12 @@ def main(
         # Sources for files to parse/output
         xml: Optional[Path], xml_dest: Optional[Path], output: Optional[Path],
         # Various filters the user can specify
-        input_refs: Optional[list], type: Optional[list], labels: Optional[list[str]], filter: Optional[list[str]],
+        input_refs: Optional[list], type: Optional[list], labels: Optional[Path], filter: Optional[list[str]],
         min_year: int,
         # Formatting
         style: str, should_check_labels: bool, reverse: bool, sort_refs: bool, to_gsheet: bool, combine: bool,
         # Misc. other stuff
         verbose: bool, sync: bool, freshen_cache: bool,
-        **kwargs
 ):
     # Initialize colored logging
     # Note: coloredlogs.install() replaces logging.BasicConfig()

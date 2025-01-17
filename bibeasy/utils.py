@@ -77,7 +77,7 @@ class SmartFormatter(argparse.HelpFormatter):
 
 def csv_to_txt(
         df_csv, pubtypes: Optional[list[str]], combine: bool,
-        output: Path, labels: Optional[list[str]], style: str
+        output: Path, labels: Optional[Path], style: str
 ):
     """
     Write formatted output file with list of publication.

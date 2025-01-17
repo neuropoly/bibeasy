@@ -98,7 +98,7 @@ def convert_labels_file(labels_file, output_file):
 
 
 def csv_to_txt_pubtype(
-        df, pubtype: str, output: Path, labels: Optional[list[str]], style: str
+        df, pubtype: str, output: Path, labels: Optional[Path], style: str
 ):
     """
     Write formatted output file with list of publication for a specific pubtype.
