@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 import docx
+import numpy as np
 import pandas as pd
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt, RGBColor
@@ -115,52 +116,52 @@ def csv_to_txt_pubtype(
 
     # For Website (https://neuro.polymtl.ca/publications/journal_articles.html)
     if output_ext == '.md':
-        # Generate aggregated list
-        list_output_txt = []
-        unique_years = sorted(df['Year'].unique(), reverse=True)
-
-        for year in unique_years:
-            list_output_txt.append('\n## {}'.format(year))
-            # This is needed for formatting the publications in the website
-            list_output_txt.append(f'<div class="publications-container">')
-            df_year = df[df['Year'] == year]
-
-            for index, row in df_year.iterrows():
-                logging.debug(row)
-                list_output_txt.append(_format_website(row))
-
-        list_output_txt.append(f"</div>")
-
-        # Generate the output directory if it doesn't exist
-        if not output_parent.exists():
-            output_parent.mkdir(parents=True)
-
-        # Save to file
-        with open(dest_file, 'w') as txtFile:
-            for item in list_output_txt:
-                txtFile.write("%s\n" % item)
-        txtFile.close()
-
-        # Create authorized labels file
-        convert_labels_file(labels, output_parent/"labels_publication.html")
+        df_to_neuro_md(df, dest_file, labels)
 
     # For Word/GoogleDoc
     elif output_ext == '.docx':
-        # Initialize the document and fill it with our entries
-        mydoc = docx.Document()
-        for index, row in df.iterrows():
-            logging.debug(row)
-            _format_docx(mydoc, row, style)
-
-        # Generate the output directory if it doesn't exist
-        if not output_parent.exists():
-            output_parent.mkdir(parents=True)
-
-        mydoc.save(str(dest_file))
+        df_to_docx(df, dest_file, style)
 
     logging.info("\nFormatting type: '{}'".format(pubtype))
     logging.info("  Selected entries: {}".format(len(df)))
     logging.info('  File written: {}'.format(dest_file.resolve()))
+
+
+def df_to_neuro_md(df: pd.DataFrame, out_file: Path, valid_labels: Path, **kwargs):
+    # Generate aggregated list
+    list_output_txt = []
+    unique_years = sorted(df['Year'].unique(), reverse=True)
+    for year in unique_years:
+        list_output_txt.append('\n## {}'.format(year))
+        # This is needed for formatting the publications in the website
+        list_output_txt.append(f'<div class="publications-container">')
+        df_year = df[df['Year'] == year]
+
+        for index, row in df_year.iterrows():
+            logging.debug(row)
+            list_output_txt.append(_format_website(row))
+    list_output_txt.append(f"</div>")
+    # Save to file
+    with open(out_file, 'w') as txtFile:
+        for item in list_output_txt:
+            txtFile.write("%s\n" % item)
+    txtFile.close()
+
+    # Create authorized labels file
+    convert_labels_file(valid_labels, out_file.parent / "labels_publication.html")
+
+
+def df_to_docx(df: pd.DataFrame, file: Path, style: str, **kwargs):
+    # Initialize the document and fill it with our entries
+    docx_out = docx.Document()
+    for _, row in df.iterrows():
+        logging.debug(row)
+        _format_docx(docx_out, row, style)
+    # Generate the output directory if it doesn't exist
+    if not file.parent.exists():
+        file.parent.mkdir(parents=True)
+    # Save the file
+    docx_out.save(str(file))
 
 
 def _format_docx(mydoc, row, style):
@@ -202,7 +203,13 @@ def _format_docx(mydoc, row, style):
     @check_field_exists('Authors')
     def _add_authors(paragraph, row):
         """Format list of authors for based on special characteristics, e.g. if they are students or HQP."""
-        list_authors = [a.strip() for a in row['Authors'].split(',')]
+        # If no authors are specified, set the list as empty
+        if row['Authors'] is np.nan:
+            list_authors = []
+        # Otherwise, parse the string contained within
+        else:
+            list_authors = [a.strip() for a in row['Authors'].split(',')]
+
         for author in list_authors:
             # If student, apply special formatting
             if author in STUDENTS:

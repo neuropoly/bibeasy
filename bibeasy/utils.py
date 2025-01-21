@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from bibeasy.formatting import csv_to_txt_pubtype
+from bibeasy.gsheet import CACHED_GSHEET
 
 ET.register_namespace("generic-cv", "http://www.cihr-irsc.gc.ca/generic-cv/1.0.0") # this helps the CCV XML write() right
 
@@ -452,3 +453,55 @@ def sync(df_csv, fname_xml):
         p.find(f"./field[@label='{field_venue[reftype]}']/value").text = venue
 
     xml.write(fname_xml, xml_declaration=True)
+
+
+def excel_to_df(excel_source: pd.ExcelFile, type_filter: list[str]):
+    """
+    Read and format an Excel spreadsheet into the format expected for the rest of the program
+    :param excel_source: The pandas Excel file manager to parse
+    :param type_filter: The types of publication (subsheets in the file) which should be read
+    :return:
+    """
+    # If no ExcelSource is provided, try to load it from the cache
+    # If no input was provided, assume the user wants to use the existing GSheet Cache
+    if excel_source is None:
+        if CACHED_GSHEET.exists():
+            logging.info("Using cached Google Sheet results as input, as no other input source was specified!")
+            excel_source = pd.ExcelFile(CACHED_GSHEET)
+        else:
+            raise ValueError("No input source was specified, and no cache exists to pull from. "
+                             "Please define either a URL to a public Google Sheet, or Excel spreadhseet file.")
+
+    # If the user didn't explicitly request a subset of publication types, use all of them
+    if type_filter is None or len(type_filter) < 1:
+        type_filter = excel_source.sheet_names
+
+    # Otherwise, check if any sheets requested by the user are not present, and raise an error if any are found
+    else:
+        invalid_types = set(type_filter) - set(excel_source.sheet_names)
+        if len(invalid_types) > 0:
+            raise ValueError(
+                f"Requested publication types '{invalid_types}' which do not exist in the cache. "
+                f"Valid publication types are '{set(excel_source.sheet_names)}' for this file. "
+                f"Check for typos, and confirm that the cache is up-to-date!"
+            )
+
+    # Iterate through the requested sheets, preparing them to be concatenated
+    sub_dfs = []
+    for type_id in type_filter:
+        # Read the sub-sheet DataFrame
+        sub_df = pd.read_excel(excel_source, type_id)
+
+        # Set the 'type' of the sub_df to the sheet's name
+        sub_df['Type'] = type_id
+
+        # Store the result in a list to be stacked later
+        sub_dfs.append(sub_df)
+
+        # Log the size of the result for the user
+        logging.info(f"\tTotal '{type_id}' entries: {sub_df.shape[0]}")
+
+    # Concatenate them all together into one full dataframe
+    return_df = pd.concat(sub_dfs, ignore_index=True)
+
+    return return_df
