@@ -16,7 +16,8 @@ setup(
     install_requires=requirements,
     entry_points={
         'console_scripts': [
-            'bibeasy = bibeasy.scripts:bibeasy_cli',
+            'bibeasy = bibeasy.scripts.bibeasy_cli:cli_hook',
+            'bibeasy_format = cli.format:cli_hook'
         ]
     }
 )

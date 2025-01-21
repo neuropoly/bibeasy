@@ -240,7 +240,12 @@ def main(
                 df_csv, type, combine, output, labels, style
             )
 
+# == Command Line Interface == #
+def cli_hook():
+    # SetupTools hook for CLI calls
+    cli_args = parse_cli_parameters().__dict__
+    main(**cli_args)
+
 
 if __name__ == '__main__':
-    kwargs = parse_cli_parameters().__dict__
-    main(**kwargs)
+    cli_hook()
