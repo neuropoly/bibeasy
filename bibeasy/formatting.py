@@ -34,6 +34,7 @@ STUDENTS = [
     'Foias A',
     'Germain G',
     'Gros C',
+    'Hoareau P',
     'Kerbrat A',
     'Lemay A',
     'Levy S',
