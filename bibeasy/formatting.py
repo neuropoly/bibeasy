@@ -3,12 +3,14 @@
 # Deals with output formatting
 
 import logging
-import os
-import docx
-from docx.shared import Pt, Inches, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH
-import pandas as pd
+from pathlib import Path
+from typing import Optional
 
+import docx
+import numpy as np
+import pandas as pd
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches, Pt, RGBColor
 
 # TODO: fetch students from google sheet
 STUDENTS = [
@@ -97,56 +99,70 @@ def convert_labels_file(labels_file, output_file):
         f.write(html_code)
 
 
-def csv_to_txt_pubtype(df, pubtype, args):
+def csv_to_txt_pubtype(
+        df, pubtype: str, output: Path, labels: Optional[Path], style: str
+):
     """
     Write formatted output file with list of publication for a specific pubtype.
-    :param df: DF of a single pubtype
-    :param pubtype: str: Publication type
-    :param args:
-    :return:
     """
-    file_output, ext_output = args.output.split('.')
-    fname_output = '{}-{}.{}'.format(file_output, pubtype, ext_output)
+    # Parse the output using PathLib to determine the relevant components
+    output_path = output
+    output_parent = output_path.parent
+    output_name = output_path.stem
+    output_ext = output_path.suffix
+
+    # Determine the file's destination, creating the output directory if its needed
+    dest_name = f"{output_name}-{pubtype}{output_ext}"
+    dest_file = output_parent / dest_name
 
     # For Website (https://neuro.polymtl.ca/publications/journal_articles.html)
-    if ext_output == 'md':
-        # Generate aggregated list
-        list_output_txt = []
-        unique_years = sorted(df['Year'].unique(), reverse=True)
-
-        for year in unique_years:
-            list_output_txt.append('\n## {}'.format(year))
-            # This is needed for formatting the publications in the website
-            list_output_txt.append(f'<div class="publications-container">')
-            df_year = df[df['Year'] == year]
-
-            for index, row in df_year.iterrows():
-                logging.debug(row)
-                list_output_txt.append(_format_website(row))
-
-        list_output_txt.append(f"</div>")
-
-        # Save to file
-        with open(fname_output, 'w') as txtFile:
-            for item in list_output_txt:
-                txtFile.write("%s\n" % item)
-        txtFile.close()
-
-        # Create authorized labels file
-        convert_labels_file(args.labels,
-                            "labels_publication.html")
+    if output_ext == '.md':
+        df_to_neuro_md(df, dest_file, labels)
 
     # For Word/GoogleDoc
-    elif ext_output == 'docx':
-        mydoc = docx.Document()
-        for index, row in df.iterrows():
-            logging.debug(row)
-            _format_docx(mydoc, row, args.style)
-        mydoc.save(fname_output)
+    elif output_ext == '.docx':
+        df_to_docx(df, dest_file, style)
 
     logging.info("\nFormatting type: '{}'".format(pubtype))
     logging.info("  Selected entries: {}".format(len(df)))
-    logging.info('  File written: {}'.format(fname_output))
+    logging.info('  File written: {}'.format(dest_file.resolve()))
+
+
+def df_to_neuro_md(df: pd.DataFrame, out_file: Path, valid_labels: Path, **kwargs):
+    # Generate aggregated list
+    list_output_txt = []
+    unique_years = sorted(df['Year'].unique(), reverse=True)
+    for year in unique_years:
+        list_output_txt.append('\n## {}'.format(year))
+        # This is needed for formatting the publications in the website
+        list_output_txt.append(f'<div class="publications-container">')
+        df_year = df[df['Year'] == year]
+
+        for index, row in df_year.iterrows():
+            logging.debug(row)
+            list_output_txt.append(_format_website(row))
+    list_output_txt.append(f"</div>")
+    # Save to file
+    with open(out_file, 'w') as txtFile:
+        for item in list_output_txt:
+            txtFile.write("%s\n" % item)
+    txtFile.close()
+
+    # Create authorized labels file
+    convert_labels_file(valid_labels, out_file.parent / "labels_publication.html")
+
+
+def df_to_docx(df: pd.DataFrame, file: Path, style: str, **kwargs):
+    # Initialize the document and fill it with our entries
+    docx_out = docx.Document()
+    for _, row in df.iterrows():
+        logging.debug(row)
+        _format_docx(docx_out, row, style)
+    # Generate the output directory if it doesn't exist
+    if not file.parent.exists():
+        file.parent.mkdir(parents=True)
+    # Save the file
+    docx_out.save(str(file))
 
 
 def _format_docx(mydoc, row, style):
@@ -188,7 +204,13 @@ def _format_docx(mydoc, row, style):
     @check_field_exists('Authors')
     def _add_authors(paragraph, row):
         """Format list of authors for based on special characteristics, e.g. if they are students or HQP."""
-        list_authors = [a.strip() for a in row['Authors'].split(',')]
+        # If no authors are specified, set the list as empty
+        if row['Authors'] is np.nan:
+            list_authors = []
+        # Otherwise, parse the string contained within
+        else:
+            list_authors = [a.strip() for a in row['Authors'].split(',')]
+
         for author in list_authors:
             # If student, apply special formatting
             if author in STUDENTS:
