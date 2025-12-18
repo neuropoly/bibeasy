@@ -56,6 +56,7 @@ STUDENTS = [
     'Perraud B',
     'Rouhier L',
     'Saliani A',
+    'Sarrazin A',
     'Snoussi H',
     'Topfer R',
     'Toulouse A',
