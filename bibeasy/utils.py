@@ -2,19 +2,19 @@
 #
 # List of utilities useful for this package
 
-import os
 import argparse
-import fileinput
 import logging
-import numpy as np
 import re
 import shutil
 import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import List, Optional
 
+import numpy as np
 import pandas as pd
 
 from bibeasy.formatting import csv_to_txt_pubtype
-
+from bibeasy.gsheet import CACHED_GSHEET
 
 ET.register_namespace("generic-cv", "http://www.cihr-irsc.gc.ca/generic-cv/1.0.0") # this helps the CCV XML write() right
 
@@ -76,35 +76,35 @@ class SmartFormatter(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def csv_to_txt(df_csv, args):
+def csv_to_txt(
+        df_csv, pubtypes: Optional[list[str]], combine: bool,
+        output: Path, labels: Optional[Path], style: str
+):
     """
     Write formatted output file with list of publication.
-    :param df_csv:
-    :param args:
-    :return:
     """
-    # Iterate across pubtypes and write output file
-    for pubtype in args.type:
-        csv_to_txt_pubtype(df_csv[df_csv['Type'] == pubtype], pubtype, args)
-    #Sort df descending for wiki output
-    if args.combine:
-        df_csv = df_csv.sort_values(['Year'], ascending=False)
-        csv_to_txt_pubtype(df_csv, 'combined', args)
+    # If no subtypes were defined, use all available
+    if pubtypes is None or len(pubtypes) < 1:
+        pubtypes = set(df_csv['Type'])
 
-def display_ref(df, input_refs):
+    # Iterate across pubtypes and write output file
+    for pubtype in pubtypes:
+        sub_db = df_csv[df_csv['Type'] == pubtype]
+        csv_to_txt_pubtype(sub_db, pubtype, output, labels, style)
+    #Sort df descending for wiki output
+    if combine:
+        df_csv = df_csv.sort_values(['Year'], ascending=False)
+        csv_to_txt_pubtype(df_csv, 'combined', output, labels, style)
+
+def display_ref(df, input_refs: List[str]):
     """
     Display reference.
     :param df:
     :param input_refs: String or file name containing a list of references.
     :return:
     """
-    # If input_refs is a file, find references using regex
-    if os.path.isfile(input_refs):
-        lineiter = fileinput.input(input_refs)
-    else:
-        lineiter = [input_refs]
     # Read input text file
-    for line in lineiter:
+    for line in input_refs:
         # Find all refs that have J or C as prefix, followed by an integer
         list_ref_id = []
         for prefixtype in list(usertype2prefix.values()):
@@ -116,10 +116,13 @@ def display_ref(df, input_refs):
         if list_ref_id:
             for ref_id in list_ref_id:
                 ref = df[df['ID'] == ref_id]
-                print("{:<5s}{}..., {}".format(
-                    ref_id,
-                    ref['Authors'].to_numpy()[0].split(',')[0],
-                    ref['Title'].to_numpy()[0]))
+                if ref.shape[0] < 1:
+                    logging.warning(f"No entries in GSheet Cache matched reference ID '{ref_id}'; skipping!")
+                else:
+                    print("{:<5s}{}..., {}".format(
+                        ref_id,
+                        ref['Authors'].to_numpy()[0].split(',')[0],
+                        ref['Title'].to_numpy()[0]))
 
 
 def display_replacement(df_old, id_old, id_new):
@@ -153,10 +156,15 @@ def find_matching_ref(df_csv, df_ccv, pubtypes):
     :return: dict: ID conversion from CSV to CCV
     """
     # df_ccv[(df_ccv['Title'] == row['Title']) & (df_ccv['Journal' == row['Journal']])]
-    check_mismatched_fields = ['Authors',
-                               'Journal/Conference']
+    check_mismatched_fields = ['Authors', 'Journal/Conference']
+
+    # If no pubtype was specified, check only articles and proceedings
+    # TODO Move this (and several other identical checks) elsewhere to reduce redundancy
+    if pubtypes is None or len(pubtypes) < 1:
+        pubtypes = ['article', 'proceedings']
+
     for pubtype in pubtypes:
-        medium_type = {'article': 'Journal', 'proceedings': 'Conference'}
+        # medium_type = {'article': 'Journal', 'proceedings': 'Conference'}
         logging.info("\nPublication type: '{}'\n".format(pubtype))
         # First, loop across CSV refs
         csv2ccv = {}
@@ -244,12 +252,16 @@ def fix_input_ref(inputref_arg):
     return inputref_arg[0]
 
 
-def xml_to_df(fname_xml):
+def xml_to_df(xml_path: Path):
     """
     Import XML CCV structure into custom DataFrame
-    :param fname_xml:
+    :param xml_path: Path to the XML file to parse
     :return:
     """
+    # Check to make sure the file actually exists, and raise an error if its doesn't
+    if not xml_path.exists():
+        raise ValueError("Path provided for the CCV XML does not exist, and could not be read!")
+
     # the title is found either in the 'Journal' or 'Conference Name' <field>,
     # depending on what kind of publication it was, hence field_journalconf.
     field_title = {'Journal Articles': 'Article Title',
@@ -259,7 +271,7 @@ def xml_to_df(fname_xml):
                    'Conference Publications': 'Conference Name'}
 
     # Read XML file (CCV references)
-    xml = ET.parse(fname_xml)
+    xml = ET.parse(xml_path)
     publications = xml.getroot().find("./section[@label='Contributions']/section[@label='Publications']")
 
     refcounters = {reftype: 0 for reftype in CCV_REF_TYPE}
@@ -345,12 +357,8 @@ def replace_ref_in_text(df_old, df_new, input_refs, sort_ref=False):
     :return:
     """
     # If input_refs is a file, find references using regex
-    if os.path.isfile(input_refs):
-        lineiter = fileinput.input(input_refs)
-    else:
-        lineiter = [input_refs]
     # Read input text file
-    for line in lineiter:
+    for line in input_refs:
         # Find blocks of refs
         ref_blocks = find_ref_blocks(line)
         # Loop across blocks and replace refs
@@ -445,3 +453,55 @@ def sync(df_csv, fname_xml):
         p.find(f"./field[@label='{field_venue[reftype]}']/value").text = venue
 
     xml.write(fname_xml, xml_declaration=True)
+
+
+def excel_to_df(excel_source: pd.ExcelFile, type_filter: list[str]):
+    """
+    Read and format an Excel spreadsheet into the format expected for the rest of the program
+    :param excel_source: The pandas Excel file manager to parse
+    :param type_filter: The types of publication (subsheets in the file) which should be read
+    :return:
+    """
+    # If no ExcelSource is provided, try to load it from the cache
+    # If no input was provided, assume the user wants to use the existing GSheet Cache
+    if excel_source is None:
+        if CACHED_GSHEET.exists():
+            logging.info("Using cached Google Sheet results as input, as no other input source was specified!")
+            excel_source = pd.ExcelFile(CACHED_GSHEET)
+        else:
+            raise ValueError("No input source was specified, and no cache exists to pull from. "
+                             "Please define either a URL to a public Google Sheet, or Excel spreadhseet file.")
+
+    # If the user didn't explicitly request a subset of publication types, use all of them
+    if type_filter is None or len(type_filter) < 1:
+        type_filter = excel_source.sheet_names
+
+    # Otherwise, check if any sheets requested by the user are not present, and raise an error if any are found
+    else:
+        invalid_types = set(type_filter) - set(excel_source.sheet_names)
+        if len(invalid_types) > 0:
+            raise ValueError(
+                f"Requested publication types '{invalid_types}' which do not exist in the cache. "
+                f"Valid publication types are '{set(excel_source.sheet_names)}' for this file. "
+                f"Check for typos, and confirm that the cache is up-to-date!"
+            )
+
+    # Iterate through the requested sheets, preparing them to be concatenated
+    sub_dfs = []
+    for type_id in type_filter:
+        # Read the sub-sheet DataFrame
+        sub_df = pd.read_excel(excel_source, type_id)
+
+        # Set the 'type' of the sub_df to the sheet's name
+        sub_df['Type'] = type_id
+
+        # Store the result in a list to be stacked later
+        sub_dfs.append(sub_df)
+
+        # Log the size of the result for the user
+        logging.info(f"\tTotal '{type_id}' entries: {sub_df.shape[0]}")
+
+    # Concatenate them all together into one full dataframe
+    return_df = pd.concat(sub_dfs, ignore_index=True)
+
+    return return_df
